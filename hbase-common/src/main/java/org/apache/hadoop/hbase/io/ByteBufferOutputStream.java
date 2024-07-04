@@ -78,7 +78,10 @@ public class ByteBufferOutputStream extends OutputStream {
       Exception exception = new Exception();
       for (StackTraceElement element : exception.getStackTrace()) {
           if(element.getMethodName().equals("setResponse")){
+              System.out.println("Throwing OutofMemoryError in setResponse");
+              //throw new BufferOverflowException();
               throw new OutOfMemoryError();
+
           }
           System.out.println("Class: " + element.getClassName() +
                   ", Method: " + element.getMethodName() +

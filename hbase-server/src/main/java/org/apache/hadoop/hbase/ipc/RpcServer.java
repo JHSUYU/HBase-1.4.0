@@ -1756,8 +1756,10 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
         }
 
         if (useSasl) {
+          LOG.debug("Use SASL processing (rpcs=" + rpcCount.get() + ")");
           saslReadAndProcess(data);
         } else {
+          LOG.debug("SASL is not required on the client. Skipping");
           processOneRpc(data);
         }
 

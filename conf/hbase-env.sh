@@ -137,4 +137,3 @@ export HBASE_REGIONSERVER_OPTS="$HBASE_REGIONSERVER_OPTS -XX:PermSize=128m -XX:M
 # DRFA doesn't put any cap on the log size. Please refer to HBase-5655 for more context.
 export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home
 export HBASE_HOME=/Users/lizhenyu/Desktop/proj_failure_recovery/hbase-1.4.0
-export HBASE_MANAGES_ZK=true

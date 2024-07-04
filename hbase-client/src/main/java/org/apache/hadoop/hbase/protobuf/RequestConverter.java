@@ -508,6 +508,26 @@ public final class RequestConverter {
     return builder.build();
   }
 
+  public static ScanRequest buildScanRequest(final byte[] regionName, final Scan scan,
+                                             final int numberOfRows, final boolean closeScanner, boolean isRetry) throws IOException {
+    ScanRequest.Builder builder = ScanRequest.newBuilder();
+    RegionSpecifier region = buildRegionSpecifier(
+            RegionSpecifierType.REGION_NAME, regionName);
+    builder.setNumberOfRows(numberOfRows);
+    builder.setCloseScanner(closeScanner);
+    builder.setRegion(region);
+    builder.setScan(ProtobufUtil.toScan(scan));
+    builder.setClientHandlesPartials(true);
+    builder.setClientHandlesHeartbeats(true);
+    builder.setTrackScanMetrics(scan.isScanMetricsEnabled());
+    builder.setIsRetry(isRetry);
+    System.out.println("RequestConverter.buildScanRequest, isRetry is " + isRetry);
+    if (scan.getLimit() > 0) {
+      builder.setLimitOfRows(scan.getLimit());
+    }
+    return builder.build();
+  }
+
   /**
    * Create a protocol buffer ScanRequest for a scanner id
    *

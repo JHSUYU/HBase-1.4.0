@@ -494,6 +494,8 @@ public class HRegionServer extends HasThread implements
 
   protected final RSRpcServices rpcServices;
 
+  protected RSRpcServices shadowRSRpcServices;
+
   protected BaseCoordinatedStateManager csm;
 
   private final boolean useZKForAssignment;
@@ -560,6 +562,7 @@ public class HRegionServer extends HasThread implements
     this.stopped = false;
 
     rpcServices = createRpcServices();
+    //shadowRSRpcServices = createRpcServices();
     if (this instanceof HMaster) {
       useThisHostnameInstead = conf.get(MASTER_HOSTNAME_KEY);
     } else {
@@ -704,6 +707,10 @@ public class HRegionServer extends HasThread implements
 
   protected RSRpcServices createRpcServices() throws IOException {
     return new RSRpcServices(this);
+  }
+
+  protected RSRpcServices shadowCreateRpcServices() throws IOException {
+    return new RSRpcServices(this, true);
   }
 
   protected void configureInfoServer() {

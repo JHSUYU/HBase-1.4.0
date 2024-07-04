@@ -24,21 +24,13 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.HRegionLocation;
-import org.apache.hadoop.hbase.HTestConst;
-import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
-import org.apache.hadoop.hbase.MiniHBaseCluster;
-import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.filter.ColumnPrefixFilter;
 import org.apache.hadoop.hbase.filter.ColumnRangeFilter;
 import org.apache.hadoop.hbase.master.HMaster;
@@ -179,6 +171,63 @@ public class TestScannersFromClientSide {
     verifyResult(result, kvListExp, toLog, "Testing second batch of scan");
 
   }
+
+    @Test
+    public void testScanLargeRowOOM() throws Exception {
+        TableName TABLE_NAME = TableName.valueOf("TestLargeRow");
+        byte[] FAMILY_NAME = Bytes.toBytes("f");
+        int NUM_ROWS = 1;
+        int ROW_SIZE = 1024 * 1024; // 1MB
+
+        HTableDescriptor htd = new HTableDescriptor(TABLE_NAME);
+        HColumnDescriptor hcd = new HColumnDescriptor(FAMILY_NAME);
+        htd.addFamily(hcd);
+        TEST_UTIL.getHBaseAdmin().createTable(htd);
+
+        // Insert data
+        Table table = TEST_UTIL.getConnection().getTable(TABLE_NAME);
+        try {
+            byte[] value = new byte[ROW_SIZE];
+            new Random().nextBytes(value);
+            for (int i = 0; i < NUM_ROWS; i++) {
+                Put put = new Put(Bytes.toBytes("row-test" + i));
+                put.addColumn(FAMILY_NAME, Bytes.toBytes("q"), value);
+                table.put(put);
+            }
+
+            // Scan table
+            Scan scan = new Scan();
+            scan.setCaching(NUM_ROWS);
+            ResultScanner scanner = table.getScanner(scan);
+            int rowCount = 0;
+            for (Result result = scanner.next(); result != null; result = scanner.next()) {
+                rowCount++;
+            }
+            assertEquals(NUM_ROWS, rowCount);
+            scanner.close();
+
+            // Verify RegionServer status
+            //ClusterStatus clusterStatus = table.getClusterStatus();
+            ClusterStatus clusterStatus = TEST_UTIL.getHBaseAdmin().getClusterStatus();
+            int liveServerCount = clusterStatus.getServersSize();
+            int deadServerCount = clusterStatus.getDeadServers();
+            assertTrue("Expected no dead servers", deadServerCount == 0);
+            assertTrue("Expected all servers to be alive", liveServerCount == clusterStatus.getServers().size());
+
+            // Verify data consistency
+            scanner = table.getScanner(new Scan());
+            rowCount = 0;
+            for (Result result = scanner.next(); result != null; result = scanner.next()) {
+                byte[] resultValue = result.getValue(FAMILY_NAME, Bytes.toBytes("q"));
+                assertEquals("Row value size mismatch", ROW_SIZE, resultValue.length);
+                rowCount++;
+            }
+            assertEquals("Row count mismatch", NUM_ROWS, rowCount);
+            scanner.close();
+        } finally {
+            table.close();
+        }
+    }
 
   @Test
   public void testMaxResultSizeIsSetToDefault() throws Exception {

@@ -77,6 +77,9 @@ public class ResultBoundedCompletionService<V> {
     public void run() {
       try {
         if (!cancelled) {
+          LOG.debug("Calling the callable for replica " + replicaId + " with callTimeout " +
+              callTimeout + " ms");
+          LOG.debug("Future is " + future);
           result = this.retryingCaller.callWithRetries(future, callTimeout);
           resultObtained = true;
         }
@@ -168,6 +171,7 @@ public class ResultBoundedCompletionService<V> {
 
   public void submit(RetryingCallable<V> task, int callTimeout, int id) {
     QueueingFuture<V> newFuture = new QueueingFuture<V>(task, callTimeout, id);
+    LOG.debug("Submitting the task for replica " + id + " with callTimeout " + callTimeout + " ms");
     executor.execute(Trace.wrap(newFuture));
     tasks[id] = newFuture;
   }

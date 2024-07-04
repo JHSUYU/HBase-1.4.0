@@ -2018,6 +2018,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
         }
         MonitoredTask status = TaskMonitor.get().createStatus("Master startup");
         status.setDescription("Master startup");
+        //Primary HMaster, Backup HMaster
         try {
           if (activeMasterManager.blockUntilBecomingActiveMaster(timeout, status)) {
             finishActiveMasterInitialization(status);

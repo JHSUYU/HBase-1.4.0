@@ -74,6 +74,8 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
   private boolean someRPCcancelled = false; //required for testing purposes only
   private int regionReplication = 0;
 
+  public boolean isRetry=false;
+
   public ScannerCallableWithReplicas(TableName tableName, ClusterConnection cConnection,
       ScannerCallable baseCallable, ExecutorService pool, int timeBeforeReplicas, Scan scan,
       int retries, int scannerTimeout, int caching, Configuration conf,
@@ -127,6 +129,10 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     // really close it. In the case of regular scanners, this applies. We make couple
     // of RPCs to a RegionServer, and when that region is exhausted, we set
     // the closed flag. Then an RPC is required to actually close the scanner.
+    if(isRetry){
+        LOG.debug("ScannerCallableWithReplicas isRetry=true");
+      currentScannerCallable.isRetry = true;
+    }
     if (currentScannerCallable != null && currentScannerCallable.closed) {
       // For closing we target that exact scanner (and not do replica fallback like in
       // the case of normal reads)
@@ -179,6 +185,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     AtomicBoolean done = new AtomicBoolean(false);
     replicaSwitched.set(false);
     // submit call for the primary replica.
+    LOG.debug("Submitting primary replica scan request");
     addCallsForCurrentReplica(cs);
     int startIndex = 0;
 
@@ -317,6 +324,8 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
   private void addCallsForCurrentReplica(
       ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs) {
     RetryingRPC retryingOnReplica = new RetryingRPC(currentScannerCallable);
+    LOG.debug("Submitting primary replica scan request, currentScannerCallable=" +
+        currentScannerCallable);
     outstandingCallables.add(currentScannerCallable);
     cs.submit(retryingOnReplica, scannerTimeout, currentScannerCallable.id);
   }
@@ -428,6 +437,10 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     @Override
     public boolean isCancelled() {
       return cancelled;
+    }
+
+    public void setRetry(){
+        callable.isRetry = true;
     }
   }
 

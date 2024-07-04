@@ -1051,6 +1051,95 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
     this(rs, DEFAULT_LOG_DELEGATE);
   }
 
+  public RSRpcServices(HRegionServer rs, boolean isShadow) throws IOException{
+    this(rs,DEFAULT_LOG_DELEGATE,isShadow);
+  }
+
+  public RSRpcServices(HRegionServer rs, LogDelegate ld, boolean isShadow) throws IOException {
+    this.ld=ld;
+    regionServer = rs;
+    rowSizeWarnThreshold = rs.conf.getInt(BATCH_ROWS_THRESHOLD_NAME, BATCH_ROWS_THRESHOLD_DEFAULT);
+    RpcSchedulerFactory rpcSchedulerFactory;
+    try {
+      Class<?> rpcSchedulerFactoryClass = rs.conf.getClass(
+              REGION_SERVER_RPC_SCHEDULER_FACTORY_CLASS,
+              SimpleRpcSchedulerFactory.class);
+      rpcSchedulerFactory = (RpcSchedulerFactory)
+              rpcSchedulerFactoryClass.getDeclaredConstructor().newInstance();
+    } catch (Exception e) {
+      throw new IllegalArgumentException(e);
+    }
+    // Server to handle client requests.
+    InetSocketAddress initialIsa;
+    InetSocketAddress bindAddress;
+    if(this instanceof MasterRpcServices) {
+      String hostname = getHostname(rs.conf, true);
+      int port = rs.conf.getInt(HConstants.MASTER_PORT, HConstants.DEFAULT_MASTER_PORT);
+      // Creation of a HSA will force a resolve.
+      initialIsa = new InetSocketAddress(hostname, port);
+      bindAddress = new InetSocketAddress(rs.conf.get("hbase.master.ipc.address", hostname), port);
+    } else {
+      String hostname = getHostname(rs.conf, false);
+      LOG.debug("Shadow RSRpcServices hostname: " + hostname);
+      int port=15990;
+//      int port = rs.conf.getInt(HConstants.REGIONSERVER_PORT,
+//              HConstants.DEFAULT_REGIONSERVER_PORT);
+      // Creation of a HSA will force a resolve.
+      initialIsa = new InetSocketAddress(hostname, port);
+      LOG.debug("Shadow RSRpcServices initialIsa: " + initialIsa);
+      LOG.debug("hbase.regionserver.ipc.address: " + rs.conf.get("hbase.regionserver.ipc.address"));
+      bindAddress = new InetSocketAddress(
+              rs.conf.get("hbase.regionserver.ipc.address", hostname), port);
+
+    }
+    if (initialIsa.getAddress() == null) {
+      throw new IllegalArgumentException("Failed resolve of " + initialIsa);
+    }
+    priority = createPriority();
+    String name = rs.getProcessName() + "/" + initialIsa.toString();
+    // Set how many times to retry talking to another server over HConnection.
+    ConnectionUtils.setServerSideHConnectionRetriesConfig(rs.conf, name, LOG);
+    try {
+      rpcServer = new RpcServer(rs, name, getServices(),
+              bindAddress, // use final bindAddress for this server.
+              rs.conf,
+              rpcSchedulerFactory.create(rs.conf, this, rs));
+      rpcServer.setRsRpcServices(this);
+    } catch (BindException be) {
+      String configName = (this instanceof MasterRpcServices) ? HConstants.MASTER_PORT :
+              HConstants.REGIONSERVER_PORT;
+      throw new IOException(be.getMessage() + ". To switch ports use the '" + configName +
+              "' configuration property.", be.getCause() != null ? be.getCause() : be);
+    }
+
+    scannerLeaseTimeoutPeriod = rs.conf.getInt(
+            HConstants.HBASE_CLIENT_SCANNER_TIMEOUT_PERIOD,
+            HConstants.DEFAULT_HBASE_CLIENT_SCANNER_TIMEOUT_PERIOD);
+    maxScannerResultSize = rs.conf.getLong(
+            HConstants.HBASE_SERVER_SCANNER_MAX_RESULT_SIZE_KEY,
+            HConstants.DEFAULT_HBASE_SERVER_SCANNER_MAX_RESULT_SIZE);
+    rpcTimeout = rs.conf.getInt(
+            HConstants.HBASE_RPC_TIMEOUT_KEY,
+            HConstants.DEFAULT_HBASE_RPC_TIMEOUT);
+    minimumScanTimeLimitDelta = rs.conf.getLong(
+            REGION_SERVER_RPC_MINIMUM_SCAN_TIME_LIMIT_DELTA,
+            DEFAULT_REGION_SERVER_RPC_MINIMUM_SCAN_TIME_LIMIT_DELTA);
+
+    InetSocketAddress address = rpcServer.getListenerAddress();
+    LOG.debug("listener address: " + address);
+    if (address == null) {
+      throw new IOException("Listener channel is closed");
+    }
+    // Set our address, however we need the final port that was given to rpcServer
+    isa = new InetSocketAddress(initialIsa.getHostName(), address.getPort());
+    rpcServer.setErrorHandler(this);
+    rs.setName(name);
+
+    closedScanners = CacheBuilder.newBuilder()
+            .expireAfterAccess(scannerLeaseTimeoutPeriod, TimeUnit.MILLISECONDS).build();
+
+  }
+
   // Directly invoked only for testing
   RSRpcServices(HRegionServer rs, LogDelegate ld) throws IOException {
     this.ld = ld;
