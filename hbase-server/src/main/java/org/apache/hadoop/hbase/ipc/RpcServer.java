@@ -369,6 +369,10 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
       this.deadline = this.timeout > 0 ? this.timestamp + this.timeout : Long.MAX_VALUE;
     }
 
+    public Message getParam() {
+        return param;
+    }
+
     /**
      * Call is done. Execution happened and we returned results to client. It is now safe to
      * cleanup.

@@ -156,6 +156,7 @@ public class RpcRetryingCaller<T> {
                     // if called with false, check table status on ZK
                     interceptor.intercept(context.prepare(callable, tries));
                     LOG.info("callable.toString() is " + callable.toString());
+                    retryMode = true;
                 }
                 return callable.call(getTimeout(callTimeout));
             } catch (PreemptiveFastFailException e) {
