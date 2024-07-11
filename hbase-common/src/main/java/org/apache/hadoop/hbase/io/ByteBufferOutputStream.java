@@ -75,18 +75,6 @@ public class ByteBufferOutputStream extends OutputStream {
 //      throw new BufferOverflowException();
 //    }
 
-      Exception exception = new Exception();
-      for (StackTraceElement element : exception.getStackTrace()) {
-          if(element.getMethodName().equals("setResponse")){
-              System.out.println("Throwing OutofMemoryError in setResponse");
-              //throw new BufferOverflowException();
-              throw new OutOfMemoryError();
-
-          }
-          System.out.println("Class: " + element.getClassName() +
-                  ", Method: " + element.getMethodName() +
-                  ", Line: " + element.getLineNumber());
-      }
       return useDirectByteBuffer? ByteBuffer.allocateDirect(capacity): ByteBuffer.allocate(capacity);
   }
 
