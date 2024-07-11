@@ -10,7 +10,6 @@ if [ $? -ne 0 ]; then
     exit 1
 else
     echo "package success"
-    exit 0
 fi
 #mvn package assembly:single -Dmaven.main.skip=true -DskipTests
 cd /Users/lizhenyu/Desktop/proj_failure_recovery/source_code/hbase-1.4.0/hbase-assembly/target
