@@ -5,7 +5,14 @@ if [ -d "/Users/lizhenyu/Desktop/proj_failure_recovery/source_code/hbase-1.4.0/h
 rm -rf /Users/lizhenyu/Desktop/proj_failure_recovery/source_code/hbase-1.4.0/hbase-assembly/target/hbase-1.4.0-bin
 fi
 mvn clean package -DskipTests assembly:single validate -Denforcer.skip=true
-package assembly:single -Dmaven.main.skip=true -DskipTests
+if [ $? -ne 0 ]; then
+    echo "package fail"
+    exit 1
+else
+    echo "package success"
+    exit 0
+fi
+#mvn package assembly:single -Dmaven.main.skip=true -DskipTests
 cd /Users/lizhenyu/Desktop/proj_failure_recovery/source_code/hbase-1.4.0/hbase-assembly/target
 if [ -d "/Users/lizhenyu/Desktop/proj_failure_recovery/hbase-1.4.0" ]; then
 rm -rf /Users/lizhenyu/Desktop/proj_failure_recovery/hbase-1.4.0
