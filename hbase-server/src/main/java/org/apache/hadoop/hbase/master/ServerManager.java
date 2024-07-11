@@ -237,6 +237,7 @@ public class ServerManager {
     this.rpcControllerFactory = this.connection == null
         ? null
         : connection.getRpcControllerFactory();
+    LOG.info("deadServer numprocessing is " + this.deadservers.numProcessing + " current master is "+master.getServerName());
   }
 
   /**

@@ -755,7 +755,9 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     status.setStatus("Publishing Cluster ID in ZooKeeper");
     ZKClusterId.setClusterId(this.zooKeeper, fileSystemManager.getClusterId());
     this.initLatch.countDown();
+    LOG.info("Failure Recovery Master "+ this.serverName+ " started before serverManager");
     this.serverManager = createServerManager(this, this);
+    LOG.info("Failure Recovery Master "+ this.serverName+ " started after serverManager");
 
     setupClusterConnection();
 
@@ -845,6 +847,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     // Master has recovered hbase:meta region server and we put
     // other failed region servers in a queue to be handled later by SSH
     for (ServerName tmpServer : previouslyFailedServers) {
+      LOG.info("Failure Recovery handle previously failed server=" + tmpServer);
       this.serverManager.processDeadServer(tmpServer, true);
     }
 
@@ -1307,6 +1310,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     final boolean abortOnCorruption = conf.getBoolean(
         MasterProcedureConstants.EXECUTOR_ABORT_ON_CORRUPTION,
         MasterProcedureConstants.DEFAULT_EXECUTOR_ABORT_ON_CORRUPTION);
+
     procedureStore.start(numThreads);
     procedureExecutor.start(numThreads, abortOnCorruption);
   }
@@ -1457,7 +1461,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
         if (!force || metaInTransition) return false;
       }
       if (this.serverManager.areDeadServersInProgress()) {
-        LOG.debug("Not running balancer because processing dead regionserver(s): " +
+        LOG.info("Not running balancer because processing dead regionserver(s): " +
           this.serverManager.getDeadServers());
         return false;
       }
