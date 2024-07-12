@@ -611,6 +611,7 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
       throws IOException, InterruptedIOException {
     this.lastRecoveringNodeCreationTime = EnvironmentEdgeManager.currentTime();
     for (HRegionInfo region : userRegions) {
+      LOG.info("Failure Recovery: Marking " + region.getEncodedName() + " in recovering state");
       String regionEncodeName = region.getEncodedName();
       long retries = this.zkretries;
 
@@ -818,12 +819,15 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
         // Secondly check if there are outstanding split log task
         List<String> tasks = listSplitLogTasks();
         if (!tasks.isEmpty()) {
+          LOG.info("Failure Recovery, There are " + tasks.size() + " split log tasks before master initialization" +
+              " (LOG_SPLITTING or LOG_REPLAY)");
           hasSplitLogTask = true;
           if (isForInitialization) {
             // during initialization, try to get recovery mode from splitlogtask
             int listSize = tasks.size();
             for (int i = 0; i < listSize; i++) {
               String task = tasks.get(i);
+              LOG.info("Failure Recovery, Task is " + task + " before master initialization)");
               try {
                 byte[] data =
                     ZKUtil.getData(this.watcher, ZKUtil.joinZNode(watcher.splitLogZNode, task));
@@ -857,6 +861,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
       if (!hasSplitLogTask && !hasRecoveringRegions) {
         this.isDrainingDone = true;
         this.recoveryMode = recoveryModeInConfig;
+        LOG.info("Failure Recovery, There is no outstanding split log task or recovering regions" +
+            " after master initialization, set recovery mode to " + recoveryModeInConfig);
         return;
       } else if (!isForInitialization) {
         // splitlogtask hasn't drained yet, keep existing recovery mode
@@ -866,6 +872,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
       if (previousRecoveryMode != RecoveryMode.UNKNOWN) {
         this.isDrainingDone = (previousRecoveryMode == recoveryModeInConfig);
         this.recoveryMode = previousRecoveryMode;
+        LOG.info("Failure Recovery, There are outstanding split log tasks or recovering regions" +
+            " after master initialization, set recovery mode to " + previousRecoveryMode);
       } else {
         this.recoveryMode = recoveryModeInConfig;
       }

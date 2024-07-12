@@ -605,6 +605,8 @@ public class RegionStates {
       Map.Entry<String, ServerName> e = it.next();
       if (e.getValue().equals(serverName)) {
         it.remove();
+        LOG.debug("Failure Recovery, " + e.getKey() + " can be assigned now" +
+          " because log split is done on " + serverName);
       }
     }
     long now = System.currentTimeMillis();
